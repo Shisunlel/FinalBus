@@ -1,3 +1,5 @@
+from email.mime import base
+import requests
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivy.lang.builder import Builder
 from kivymd.uix.list import OneLineListItem
@@ -11,6 +13,8 @@ from kivymd.toast import toast
 
 import mysql.connector
 
+baseUri = 'https://bus-reservation.vercel.app/api/v1/'
+
 Builder.load_file("user/user.kv")
 
 class OptionCard(MDCard):
@@ -23,13 +27,14 @@ class CustomTextField(MDTextField):
 class UserWindow(MDBoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.mydb = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            passwd="",
-            database="bus_reservation"
-        )
-        self.mycursor = self.mydb.cursor()
+        # self.mydb = mysql.connector.connect(
+        #     host="localhost",
+        #     user="root",
+        #     passwd="P@ssw0rd",
+        #     database="bus_python",
+        #     port=3307
+        # )
+        # self.mycursor = self.mydb.cursor()
 
         self.location_items = []
         self.dialog = None
@@ -40,9 +45,11 @@ class UserWindow(MDBoxLayout):
         self.get_locations()
 
     def get_locations(self):
-        sql = 'SELECT loc_name FROM locations'
-        self.mycursor.execute(sql)
-        result = self.mycursor.fetchall()
+        # sql = 'SELECT loc_name FROM locations'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-locations'%(baseUri)).json()
+        result = res['data']
         for x in result:
             self.location_items.append(x)
 
@@ -139,28 +146,30 @@ class UserWindow(MDBoxLayout):
         self.ids.scrn_mngr.current = "main_scrn"
 
     def account_edit_profile(self):
-        sql = 'SELECT first_name, last_name, phone, email, date_of_birth FROM users ' \
-              'WHERE user_name = %s'
-        values = [self.ids.nav_drawer_header.text, ]
-        self.mycursor.execute(sql, values)
-        result = self.mycursor.fetchall()
-        for x in result:
-            if x[0] and x[1]:
-                self.ids.first_name_fld.text = x[0]
-                self.ids.last_name_fld.text = x[1]
+        user_name = self.ids.nav_drawer_header.text
+        # sql = 'SELECT first_name, last_name, phone, email, date_of_birth FROM users ' \
+        #       'WHERE user_name = %s'
+        # values = [user_name, ]
+        # self.mycursor.execute(sql, values)
+        res = requests.get('%sget-user/%s'%(baseUri, user_name)).json()
+        # result = self.mycursor.fetchall()
+        for x in res['data']:
+            if x['first_name'] and x['last_name']:
+                self.ids.first_name_fld.text = x['first_name']
+                self.ids.last_name_fld.text = x['last_name']
             else:
                 self.ids.first_name_fld.text = ""
                 self.ids.last_name_fld.text = ""
-            if x[2]:
-                self.ids.phone_fld.text = x[2]
+            if x['phone']:
+                self.ids.phone_fld.text = x['phone']
             else:
                 self.ids.phone_fld.text = ""
-            if x[3]:
-                self.ids.email_fld.text = x[3]
+            if x['email']:
+                self.ids.email_fld.text = x['email']
             else:
                 self.ids.email_fld.text = ""
-            if x[4]:
-                self.ids.dob_fld.text = str(x[4])
+            if x['date_of_birth']:
+                self.ids.dob_fld.text = str(x['date_of_birth'])
             else:
                 self.ids.dob_fld.text = ""
         self.ids.scrn_account_mngr.current = "scrn_edit_profile"
@@ -177,20 +186,29 @@ class UserWindow(MDBoxLayout):
             toast("All Field Required")
         else:
             username = self.ids.nav_drawer_header.text
-            sql = 'SELECT user_pass FROM users WHERE user_name=%s'
-            values = [username, ]
-            self.mycursor.execute(sql,values)
-            result = self.mycursor.fetchall()
-            password = result[0][0]
+            # sql = 'SELECT user_pass FROM users WHERE user_name=%s'
+            # values = [username, ]
+            # self.mycursor.execute(sql,values)
+            # result = self.mycursor.fetchall()
+            # password = result[0][0]
+            res = requests.get('%sget-user/%s' %(baseUri, username)).json()
+            password = res['user_pass']
             if old_pass == password:
                 if new_pass == confirm_pass:
                     try:
-                        sql = 'UPDATE users SET ' \
-                              'user_pass = %s ' \
-                              'WHERE user_name = %s'
-                        values = [new_pass, username, ]
-                        self.mycursor.execute(sql, values)
-                        self.mydb.commit()
+                        # sql = 'UPDATE users SET ' \
+                        #       'user_pass = %s ' \
+                        #       'WHERE user_name = %s'
+                        # values = [new_pass, username, ]
+                        # self.mycursor.execute(sql, values)
+                        # self.mydb.commit()
+                        data = {
+                            "user_pass": new_pass,
+                            "user_name": username
+                        }
+                        res = requests.post('%supdate-password' %(baseUri), json= data).json()
+                        if not res['is_success']:
+                            raise Exception
                     except:
                         self.dialog = MDDialog(
                             title="Error!",
@@ -253,15 +271,26 @@ class UserWindow(MDBoxLayout):
             if email == "":
                 self.ids.email_fld.error = True
             else:
-                email_adr = email
+                email_addr = email
                 try:
                     username = self.ids.nav_drawer_header.text
-                    sql = 'UPDATE users SET ' \
-                          'first_name=%s, last_name=%s, phone=%s, email=%s, date_of_birth=%s ' \
-                          'WHERE user_name=%s'
-                    values = [f_name, l_name, phone_num, email_adr, u_dob, username, ]
-                    self.mycursor.execute(sql, values)
-                    self.mydb.commit()
+                    # sql = 'UPDATE users SET ' \
+                    #       'first_name=%s, last_name=%s, phone=%s, email=%s, date_of_birth=%s ' \
+                    #       'WHERE user_name=%s'
+                    # values = [f_name, l_name, phone_num, email_addr, u_dob, username, ]
+                    # self.mycursor.execute(sql, values)
+                    # self.mydb.commit()
+                    data = {
+                    "user_name": username,
+                    "first_name": f_name,
+                    "last_name": l_name,
+                    "phone": phone_num,
+                    "email": email_addr,
+                    "date_of_birth": u_dob
+                    }
+                    res = requests.post('%supdate-info' %(baseUri), json=data).json()
+                    if not res['is_success']:
+                        raise Exception
                 except:
                     self.dialog = MDDialog(
                         title="Error!",
