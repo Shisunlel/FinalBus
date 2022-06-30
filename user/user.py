@@ -66,6 +66,72 @@ class UserWindow(MDBoxLayout):
             ['arrow-left-bold', lambda x: self.booking_home()]
         ]
 
+    def booking_ticket(self):
+        self.ids.scrn_booking_mngr.transition.direction = "up"
+        self.ids.scrn_booking_mngr.current = "scrn_search_ticket"
+        self.ids.toolbar.title = "Search"
+        self.ids.toolbar.right_action_items = [
+            ['arrow-left-bold', lambda x: self.booking_home()]
+        ]
+
+    #FIXME: Let User Choose How many Seat They want after clicking on a trip
+    def search_tickets(self, location, depart_date):
+        #Check for requirements
+        if location == "" or depart_date == "":
+            self.dialog = MDDialog(
+                title="Missing Requirement!",
+                text="Please Input Location and Departure Date to continue!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            #Get Location ID
+            # sql = 'SELECT loc_id FROM locations WHERE loc_name=%s'
+            # values = [location, ]
+            # self.mycursor.execute(sql, values)
+            res = requests.get('%sget-location-by-name/%s' %(baseUri, location)).json()
+            result = res['data']
+            loc_id = result['loc_id']
+
+            #Get Departure Date
+            temp = depart_date.split("-")
+            temp.reverse()
+            date = "-".join(temp)
+
+            #Get Trip Detail
+            # sql = 'SELECT trip.id, trip.departure_date, trip.departure_time, trip.seat, bus.price, bus.bus_name ' \
+            #       'FROM trip ' \
+            #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
+            #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+            #       'WHERE trip.loc_id=%s AND trip.departure_date=%s'
+            # values = [loc_id, date, ]
+            # self.mycursor.execute(sql, values)
+            res = requests.get('%sget-trips-by-loc-and-departure/%s/%s' %(baseUri, loc_id, date)).json()
+            result = res['data']
+            if not result:
+                self.ids.search_count.text = "No Result"
+                self.booking_ticket()
+            else:
+                count = self.mycursor.rowcount
+                self.ids.search_ticket_detail.clear_widgets()
+                self.ids.search_count.text = f"{count} trips found"
+                for x in result:
+                    self.ids.search_ticket_detail.add_widget(
+                        BusTicket(
+                            departure_date=f"{x['departure_date']}",
+                            departure_time=f"{x['departure_time']}",
+                            seat=f"{x['seat']}",
+                            price=f"{x['price_per_seat']}",
+                            bus_name=f"{x['bus_name']}"
+                        )
+                    )
+                self.booking_ticket()
+
     def set_list_locations(self):
         """ Show Location Menu """
         self.ids.rv.clear_widgets()

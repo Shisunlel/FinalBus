@@ -89,6 +89,13 @@ class AdminWindow(MDBoxLayout):
                 )
                 self.ids.trip_table_content.add_widget(
                     MDLabel(
+                        text=f"{x['bus_name']}",
+                        size_hint_y=None,
+                        height=50
+                    )
+                )
+                self.ids.trip_table_content.add_widget(
+                    MDLabel(
                         text=f"{x['loc_name']}",
                         size_hint_y=None,
                         height=50
@@ -111,6 +118,13 @@ class AdminWindow(MDBoxLayout):
                 self.ids.trip_table_content.add_widget(
                     MDLabel(
                         text=f"{x['departure_date']}",
+                        size_hint_y=None,
+                        height=50
+                    )
+                )
+                self.ids.trip_table_content.add_widget(
+                    MDLabel(
+                        text=f"{x['departure_time']}",
                         size_hint_y=None,
                         height=50
                     )
@@ -319,9 +333,9 @@ class AdminWindow(MDBoxLayout):
                     "user_pass": u_pass,
                     "phone": u_phone,
                     "email": u_email,
-                    "user_desc": u_role
+                    "user_role": u_role
                 }
-                res = requests.post('%supdate-info' %(baseUri), json=data).json()
+                res = requests.post('%supdate-user' %(baseUri), json=data).json()
             except:
                 self.dialog = MDDialog(
                     title="Error!",
@@ -551,20 +565,95 @@ class AdminWindow(MDBoxLayout):
                 self.dialog.open()
 
     #FIXME
-    def add_trip(self, location, price):
-        pass
+    def add_trip(self, location, bus, depart_date, depart_time):
+        if location == "" or bus == "" or depart_date == "" or depart_time == "":
+            self.dialog = MDDialog(
+                title="All Field Required!",
+                text="Please fill in all fields!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            # sql = 'SELECT loc_id FROM locations WHERE loc_name=%s'
+            # values = [location, ]
+            # self.mycursor.execute(sql, values)
+            # result = self.mycursor.fetchone()
+            res = requests.get("%s/get-location-by-name/%s" %(baseUri, location)).json()
+            result = res['data']
+            loc_id = result['loc_id']
+
+            # sql = 'SELECT id FROM bus WHERE bus_name=%s'
+            # values = [bus, ]
+            # self.mycursor.execute(sql, values)
+            # result = self.mycursor.fetchone()
+            res = requests.get("%s/get-bus-by-name/%s" %(baseUri, bus)).json()
+            result = res['data']
+            bus_id = result['id']
+
+            temp = depart_date.split("-")
+            temp.reverse()
+            date = "-".join(temp)
+
+            time = f"{date} {depart_time}"
+
+            # created_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            try:
+                # sql = 'INSERT INTO trip(loc_id, bus_id, departure_date, departure_time) ' \
+                #       'VALUES (%s, %s, %s, %s, %s)'
+                # values = [loc_id, bus_id, date, time, ]
+                # self.mycursor.execute(sql, values)
+                # self.mydb.commit()
+                data = {
+                    "loc_id": loc_id,
+                    "bus_id": bus_id,
+                    "departure_date": date,
+                    "departure_time": time
+                }
+                res = requests.post('%sadd-trip' %(baseUri), json= data).json()
+            except:
+                self.dialog = MDDialog(
+                    title="Error!",
+                    text="Cannot Add New Trip!",
+                    buttons=[
+                        MDFlatButton(
+                            text="Close",
+                            on_release=self.close_dialog
+                        )
+                    ]
+                )
+                self.dialog.open()
+            else:
+                self.dialog = MDDialog(
+                    title="Success!",
+                    text="New Trip Added Successfully!",
+                    buttons=[
+                        MDFlatButton(
+                            text="Close",
+                            on_release=self.close_dialog
+                        )
+                    ]
+                )
+                self.dialog.open()
 
     def open_location_menu(self):
-        sql = 'SELECT loc_name FROM locations'
-        self.mycursor.execute(sql)
-        result = self.mycursor.fetchall()
+        # sql = 'SELECT loc_name FROM locations'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-locations'%(baseUri)).json()
+        result = res['data']
         items = list()
         for x in result:
             items.append(
                 {
-                    "text": f"{x[0]}",
+                    "text": f"{x['loc_name']}",
                     "viewclass": "OneLineListItem",
-                    "on_release": lambda x=f"{x[0]}": self.set_trip_location(x)
+                    "on_release": lambda x=f"{x['loc_name']}": self.set_trip_location(x)
                 }
             )
         self.menu = MDDropdownMenu(
@@ -583,13 +672,15 @@ class AdminWindow(MDBoxLayout):
         self.menu.dismiss()
 
     def open_bus_menu(self):
-        sql = 'SELECT loc_name FROM locations'
-        self.mycursor.execute(sql)
-        result = self.mycursor.fetchall()
+        # sql = 'SELECT loc_name FROM locations'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-locations'%(baseUri)).json()
+        result = res['data']
         location_list = list()
         items = list()
         for location in result:
-            location_list.append(location[0])
+            location_list.append(location['loc_name'])
         if self.ids.add_trip_location_fld.text == location_list[0]:
             sql = 'SELECT bus_name FROM bus WHERE id IN (1,2,3)'
             self.mycursor.execute(sql)
@@ -639,13 +730,15 @@ class AdminWindow(MDBoxLayout):
                     }
                 )
         else:
-            sql = 'SELECT bus_name FROM bus'
-            self.mycursor.execute(sql)
-            result = self.mycursor.fetchall()
+            # sql = 'SELECT bus_name FROM bus'
+            # self.mycursor.execute(sql)
+            # result = self.mycursor.fetchall()
+            res = requests.get('%sget-buses'%(baseUri)).json()
+            result = res['data']
             for x in result:
                 items.append(
                     {
-                        "text": f"{x[0]}",
+                        "text": f"{x['bus_name']}",
                         "viewclass": "OneLineListItem",
                         "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
                     }
@@ -675,6 +768,107 @@ class AdminWindow(MDBoxLayout):
                     "on_release": lambda x=f"{time}": self.set_trip_departure_time(x)
                 }
             )
+        if self.ids.scrn_mngr.current == "scrn_add_trip":
+            self.menu = MDDropdownMenu(
+                caller=self.ids.add_trip_departure_time_fld,
+                items=items,
+                width_mult=4,
+                ver_growth="down",
+                hor_growth="right",
+            )
+        elif self.ids.scrn_mngr.current == "scrn_update_trip":
+            self.menu = MDDropdownMenu(
+                caller=self.ids.update_trip_departure_time_fld,
+                items=items,
+                width_mult=4,
+                ver_growth="down",
+                hor_growth="right",
+            )
+        self.menu.open()
+
+    def set_trip_departure_time(self, time):
+        if self.ids.scrn_mngr.current == "scrn_add_trip":
+            self.ids.add_trip_departure_time_fld.text = time
+            self.ids.add_trip_departure_time_fld.focus = False
+        elif self.ids.scrn_mngr.current == "scrn_update_trip":
+            self.ids.update_trip_departure_time_fld.text = time
+            self.ids.update_trip_departure_time_fld.focus = False
+        self.menu.dismiss()
+
+    #FIXME (DONE)
+    def update_trip(self, trip_id, depart_date, depart_time):
+        # Check if user has input in all field
+        if trip_id == "" or depart_date == "" or depart_time == "":
+            self.dialog = MDDialog(
+                title="All Fields Required!",
+                text="Please fill in all field!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            temp = depart_date.split("-")
+            temp.reverse()
+            date = "-".join(temp)
+            # update_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            try:
+                # sql = 'UPDATE trip SET departure_date=%s, departure_time=%s' \
+                #       'WHERE id=%s'
+                # values = [date, depart_time, trip_id, ]
+                # self.mycursor.execute(sql, values)
+                # self.mydb.commit()
+                data = {
+                    "departure_date": depart_date,
+                    "departure_time": depart_time,
+                    "trip_id": trip_id,
+                }
+                res = requests.post('%supdate-trip' %(baseUri), json= data).json()
+            except:
+                self.dialog = MDDialog(
+                    title="Error!",
+                    text="Cannot update trip at the moment!",
+                    buttons=[
+                        MDFlatButton(
+                            text="Close",
+                            on_release=self.close_dialog
+                        )
+                    ]
+                )
+                self.dialog.open()
+            else:
+                self.dialog = MDDialog(
+                    title="Success!",
+                    text="Your Trip has been updated!",
+                    buttons=[
+                        MDFlatButton(
+                            text="Close",
+                            on_release=self.close_dialog
+                        )
+                    ]
+                )
+                self.dialog.open()
+                self.set_trip_detail(trip_id)
+
+    def open_trip_menu(self):
+        # sql = 'SELECT id FROM trip'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-trips'%(baseUri)).json()
+        result = res['data']
+        items = list()
+        for x in result:
+            items.append(
+                {
+                    "text": f"{x['id']}",
+                    "viewclass": "OneLineListItem",
+                    "on_release": lambda x=f"{x[0]}": self.set_trip_detail(x)
+                }
+            )
         self.menu = MDDropdownMenu(
             caller=self.ids.add_trip_departure_time_fld,
             items=items,
@@ -684,9 +878,56 @@ class AdminWindow(MDBoxLayout):
         )
         self.menu.open()
 
-    def set_trip_departure_time(self, time):
-        self.ids.add_trip_departure_time_fld.text = time
-        self.ids.add_trip_departure_time_fld.focus = False
+    def set_trip_detail(self, trip_id):
+        self.ids.update_trip_detail.clear_widgets()
+        self.ids.update_trip_id_fld.text = trip_id
+
+        # sql = 'SELECT trip.id, bus.bus_name, locations.loc_name, trip.departure_date, trip.departure_time ' \
+        #       'FROM trip ' \
+        #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+        #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
+        #       'WHERE trip.id=%s'
+        # values = [trip_id, ]
+        # self.mycursor.execute(sql, values)
+        res = requests.get('%sget-trips-by-id/%s'%(baseUri, trip_id)).json()
+        result = res['data']
+        for x in result:
+            self.ids.update_trip_detail.add_widget(
+                MDLabel(
+                    text=f"{x['id']}",
+                    size_hint_y=None,
+                    height=50
+                )
+            )
+            self.ids.update_trip_detail.add_widget(
+                MDLabel(
+                    text=f"{x['bus_name']}",
+                    size_hint_y=None,
+                    height=50
+                )
+            )
+            self.ids.update_trip_detail.add_widget(
+                MDLabel(
+                    text=f"{x['loc_name']}",
+                    size_hint_y=None,
+                    height=50
+                )
+            )
+            self.ids.update_trip_detail.add_widget(
+                MDLabel(
+                    text=f"{x['departure_date']}",
+                    size_hint_y=None,
+                    height=50
+                )
+            )
+            self.ids.update_trip_detail.add_widget(
+                MDLabel(
+                    text=f"{x['departure_time']}",
+                    size_hint_y=None,
+                    height=50
+                )
+            )
+
         self.menu.dismiss()
 
     #FIXME
