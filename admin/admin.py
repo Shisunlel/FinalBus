@@ -71,7 +71,7 @@ class AdminWindow(MDBoxLayout):
 
     def show_trip_table(self):
         self.ids.trip_table_content.clear_widgets()
-        # sql = 'SELECT trip.id, locations.loc_name, bus.price_per_seat, trip.seat, trip.departure_date ' \
+        # sql = 'SELECT trip.id, bus.bus_name, locations.loc_name, bus.price, trip.seat, trip.departure_date, trip.departure_time, trip.status ' \
         #       'FROM trip ' \
         #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
         #       'INNER JOIN bus ON trip.bus_id = bus.id'
@@ -103,7 +103,7 @@ class AdminWindow(MDBoxLayout):
                 )
                 self.ids.trip_table_content.add_widget(
                     MDLabel(
-                        text=f"$ {x['price_per_seat']}",
+                        text=f"$ {x['price']}",
                         size_hint_y=None,
                         height=50
                     )
@@ -125,6 +125,17 @@ class AdminWindow(MDBoxLayout):
                 self.ids.trip_table_content.add_widget(
                     MDLabel(
                         text=f"{x['departure_time']}",
+                        size_hint_y=None,
+                        height=50
+                    )
+                )
+                status = "Active" if x['status'] == 1 else "Inactive"
+                text_color = [0, 1, 0, 1] if x['status'] == 1 else [1, 0, 0, 1]
+                self.ids.trip_table_content.add_widget(
+                    MDLabel(
+                        text=status,
+                        theme_text_color="Custom",
+                        text_color=text_color,
                         size_hint_y=None,
                         height=50
                     )
@@ -185,7 +196,7 @@ class AdminWindow(MDBoxLayout):
                 )
                 self.ids.bus_table_content.add_widget(
                     MDLabel(
-                        text=f"$ {x['price_per_seat']}",
+                        text=f"$ {x['price']}",
                         size_hint_y=None,
                         height=50
                     )
@@ -212,6 +223,178 @@ class AdminWindow(MDBoxLayout):
                     )
         else:
             pass
+
+    def show_transaction(self):
+        self.ids.transaction.clear_widgets()
+        booking = list()
+        # sql = 'SELECT id FROM booking'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-bookings' %(baseUri)).json()
+        if not res['data']:
+            self.ids.transaction.add_widget(NoData())
+        else:
+            for x in res['data']:
+                booking.append(x['id'])
+
+            for booking_id in booking:
+                # Get booking_date and price from booking
+                # sql = 'SELECT booking_date, payment, status FROM booking ' \
+                #       'WHERE id = %s'
+                # values = [booking_id, ]
+                # self.mycursor.execute(sql, values)
+                # result = self.mycursor.fetchone()
+                res = requests.get('%sget-booking-by-id/%s' %(baseUri, booking_id)).json()
+                booking_date = res['data']['booking_date']
+                price = res['data']['payment']
+                paid_status = "Paid" if res['data']['status'] == 1 else "Not Paid"
+
+                # Get seat_name from booking
+                seat = list()
+                # sql = 'SELECT seat_name FROM bus_seat ' \
+                #       'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
+                # values = [booking_id, ]
+                # self.mycursor.execute(sql, values)
+                # result = self.mycursor.fetchall()
+                res = requests.get('%sget-bus-seat-from-booking/%s' %(baseUri, booking_id)).json()
+                for x in res['data']:
+                    seat.append(x['seat_name'])
+
+                # Get trip_id
+                # sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
+                #       'WHERE booking_id = %s'
+                # values = [booking_id, ]
+                # self.mycursor.execute(sql, values)
+                # result = self.mycursor.fetchone()
+                res = requests.get('%sget-trip-id-from-booking/%s' %(baseUri, booking_id)).json()
+                trip_id = res['data']['trip_id']
+
+                # Get destination and bus name
+                # sql = 'SELECT locations.loc_name, bus.bus_name ' \
+                #       'FROM trip ' \
+                #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+                #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
+                #       'WHERE trip.id = %s'
+                # values = [trip_id, ]
+                # self.mycursor.execute(sql, values)
+                # result = self.mycursor.fetchone()
+                res = requests.get('%sget-trip-by-id/%s' %(baseUri, trip_id)).json()
+                destination = res['data']['loc_name']
+                bus_name = res['data']['bus_name']
+
+                self.ids.transaction.add_widget(
+                    Transaction(
+                        booking_id=str(booking_id),
+                        trip_id=str(trip_id),
+                        destination=destination,
+                        booking_date=str(booking_date),
+                        price=str(price),
+                        bus_name=bus_name,
+                        seat=",".join(seat),
+                        paid_status=paid_status,
+                        on_release=lambda a=Transaction: self.show_transaction_detail(a)
+                    )
+                )
+            self.ids.transaction.add_widget(
+                MDLabel(
+                    text=""
+                )
+            )
+
+    def show_transaction_detail(self, booking):
+        transaction_detail = TransactionSummary()
+
+        # Get username
+        # sql = 'SELECT users.user_name FROM booking ' \
+        #       'INNER JOIN users ON booking.user_id = users.user_id ' \
+        #       'WHERE booking.id = %s'
+        # values = [booking.booking_id, ]
+        # self.mycursor.execute(sql, values)
+        # result = self.mycursor.fetchone()
+        res = requests.get('%sget-user-from-booking/%s' %(baseUri, booking.booking_id)).json()
+        username = res['data']['user_name']
+        transaction_detail.username = username
+
+        # sql = 'SELECT locations.loc_name, trip.departure_date, trip.departure_time, bus.price ' \
+        #       'FROM trip ' \
+        #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+        #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
+        #       'WHERE trip.id = %s'
+        # values = [booking.trip_id, ]
+        # self.mycursor.execute(sql, values)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-trip-by-id/%s' %(baseUri, booking.trip_id)).json()
+        for x in res['data']:
+            transaction_detail.destination = x['loc_name']
+            transaction_detail.departure_date = f"{x['departure_date']} {x['departure_time']}"
+            transaction_detail.unit_price = f"{x['price']}"
+
+        transaction_detail.seat_no = booking.seat
+        transaction_detail.total_payment = booking.price
+        transaction_detail.passenger = str(len(booking.seat.split(",")))
+        transaction_detail.paid_status = booking.paid_status
+
+        self.ids.transaction_summary.clear_widgets()
+        self.ids.transaction_summary.add_widget(transaction_detail)
+
+        self.goto_transaction_detail()
+
+    def update_transaction(self):
+        self.dialog = MDDialog(
+            title="Confirm",
+            text="Confirm update transaction status?",
+            buttons=[
+                MDFlatButton(
+                    text="Yes",
+                    on_release=lambda x: self.confirm_update_transaction(selected_booking_id)
+                ),
+                MDFlatButton(
+                    text="No",
+                    on_release=self.close_dialog
+                )
+            ]
+        )
+        self.dialog.open()
+
+    def confirm_update_transaction(self, booking_id):
+        self.close_dialog()
+        try:
+            # sql = 'UPDATE booking, payment_offline ' \
+            #       'SET booking.status = 1, payment_offline.pay_status = 1 ' \
+            #       'WHERE booking.id = %s AND payment_offline.booking_id = %s'
+            # values = [booking_id, booking_id, ]
+            # self.mycursor.execute(sql, values)
+            # self.mydb.commit()
+            data = [booking_id, booking_id, ]
+            res = requests.post('%supdate-transaction' %(baseUri), json= data)
+        except:
+            self.dialog = MDDialog(
+                title="Error!",
+                text="An error occurred while update transaction status please try again!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=lambda x:self.return_to_transaction()
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            self.dialog = MDDialog(
+                title="Success!",
+                text="Transaction updated successfully!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=lambda x:self.return_to_transaction()
+                    )
+                ]
+            )
+            self.dialog.open()
+
+    def return_to_transaction(self):
+        self.close_dialog()
+        self.goto_transaction()
 
     #FIXME (DONE)
     def add_user(self, username, password, email):
@@ -427,7 +610,16 @@ class AdminWindow(MDBoxLayout):
             self.dialog.open()
 
     #FIXME (DONE)
-    def add_bus(self, name, price, bus_type):
+    def add_bus(self, name, location, price, bus_type):
+        # Get Location_id (Foreign Key)
+        # sql = 'SELECT loc_id FROM locations ' \
+        #       'WHERE loc_name = %s'
+        # values = [location, ]
+        # self.mycursor.execute(sql, values)
+        # result = self.mycursor.fetchone()
+        res = requests.get('%sget-location-by-name/%s' %(baseUri, location)).json()
+        loc_id = res['data']['loc_id']
+
         bus_type_list = ["Express", "VIP"]
         if name == "" or price == "":
             self.ids.bus_name_fld.error = True
@@ -451,7 +643,7 @@ class AdminWindow(MDBoxLayout):
             else:
                 type_id = 2
             try:
-                # sql = 'INSERT INTO bus (bus_name, price_per_seat, type_id, created_date) ' \
+                # sql = 'INSERT INTO bus (bus_name, loc_id, price, type_id, created_date) ' \
                 #       'VALUES (%s,%s,%s,%s)'
                 # values = [name, float(price), type_id, str(date), ]
                 # self.mycursor.execute(sql, values)
@@ -460,7 +652,8 @@ class AdminWindow(MDBoxLayout):
                     "name": name,
                     "price": float(price),
                     "type_id": type_id,
-                    "created_date": str(date)
+                    "created_date": str(date),
+                    "loc_id": loc_id
                 }
                 print(data, 'bus_data')
                 res = requests.post('%sadd-bus' %(baseUri), json= data).json()
@@ -594,6 +787,7 @@ class AdminWindow(MDBoxLayout):
             res = requests.get("%s/get-bus-by-name/%s" %(baseUri, bus)).json()
             result = res['data']
             bus_id = result['id']
+            bus_price = result['price']
 
             temp = depart_date.split("-")
             temp.reverse()
@@ -629,6 +823,17 @@ class AdminWindow(MDBoxLayout):
                 )
                 self.dialog.open()
             else:
+                # sql = 'UPDATE bus SET status=0 ' \
+                #       'WHERE id=%s'
+                # values = [bus_id, ]
+                # self.mycursor.execute(sql, values)
+                # self.mydb.commit()
+                data = {
+                    "price": float(bus_price),
+                    "bus_id": int(bus_id),
+                    "status": 0
+                }
+                res = requests.post('%supdate-bus' %(baseUri), json= data).json()
                 self.dialog = MDDialog(
                     title="Success!",
                     text="New Trip Added Successfully!",
@@ -730,12 +935,12 @@ class AdminWindow(MDBoxLayout):
                     }
                 )
         else:
-            # sql = 'SELECT bus_name FROM bus'
+            # sql = 'SELECT bus_name FROM bus WHERE status=1'
             # self.mycursor.execute(sql)
             # result = self.mycursor.fetchall()
-            res = requests.get('%sget-buses'%(baseUri)).json()
+            res = requests.get('%sget-active-buses'%(baseUri)).json()
             result = res['data']
-            for x in result:
+            if not result:
                 items.append(
                     {
                         "text": f"{x['bus_name']}",
@@ -743,6 +948,15 @@ class AdminWindow(MDBoxLayout):
                         "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
                     }
                 )
+            else:
+                for x in result:
+                    items.append(
+                        {
+                            "text": f"{x['bus_name']}",
+                            "viewclass": "OneLineListItem",
+                            "on_release": lambda x=f"{x['bus_name']}": self.set_trip_bus(x)
+                        }
+                    )
         self.menu = MDDropdownMenu(
             caller=self.ids.add_trip_bus_fld,
             items=items,
@@ -823,7 +1037,7 @@ class AdminWindow(MDBoxLayout):
                 # self.mycursor.execute(sql, values)
                 # self.mydb.commit()
                 data = {
-                    "departure_date": depart_date,
+                    "departure_date": date,
                     "departure_time": depart_time,
                     "trip_id": trip_id,
                 }
@@ -854,11 +1068,79 @@ class AdminWindow(MDBoxLayout):
                 self.dialog.open()
                 self.set_trip_detail(trip_id)
 
+    def end_trip(self, trip_id):
+        """ SET Trip Status to False and Bus Status to True """
+        if trip_id == "":
+            self.dialog = MDDialog(
+                title="Missing Requirement!",
+                text="Please select a trip id",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            self.dialog = MDDialog(
+                title="Are you sure to end this trip?",
+                buttons=[
+                    MDFlatButton(
+                        text="Yes",
+                        on_release=lambda x: self.confirm_end_trip(trip_id)
+                    ),
+                    MDFlatButton(
+                        text="No",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+
+    def confirm_end_trip(self, trip_id):
+        self.close_dialog()
+        try:
+            # sql = 'UPDATE trip, bus ' \
+            #       'SET trip.status = 0, bus.status = 1 ' \
+            #       'WHERE trip.id = %s AND trip.bus_id = bus.id'
+            # values = [trip_id, ]
+            # self.mycursor.execute(sql, values)
+            # self.mydb.commit()
+            data = {
+                "trip_id": trip_id
+            }
+            res = requests.post('%send-trip' %(baseUri), json=data).json()
+        except:
+            self.dialog = MDDialog(
+                title="Error!",
+                text="Something's wrong try again later!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+        else:
+            self.dialog = MDDialog(
+                title="Success!",
+                text="Your trip has ended!",
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=self.close_dialog
+                    )
+                ]
+            )
+            self.dialog.open()
+
     def open_trip_menu(self):
-        # sql = 'SELECT id FROM trip'
+        # sql = 'SELECT id FROM trip WHERE status = 1'
         # self.mycursor.execute(sql)
         # result = self.mycursor.fetchall()
-        res = requests.get('%sget-trips'%(baseUri)).json()
+        res = requests.get('%sget-active-trips'%(baseUri)).json()
         result = res['data']
         items = list()
         for x in result:
@@ -866,7 +1148,7 @@ class AdminWindow(MDBoxLayout):
                 {
                     "text": f"{x['id']}",
                     "viewclass": "OneLineListItem",
-                    "on_release": lambda x=f"{x[0]}": self.set_trip_detail(x)
+                    "on_release": lambda x=f"{x['id']}": self.set_trip_detail(x)
                 }
             )
         self.menu = MDDropdownMenu(

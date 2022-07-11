@@ -13,6 +13,7 @@ from kivymd.toast import toast
 
 import mysql.connector
 
+#FIXME: Need to work on Seat Selection Field (User Can Select Their Seat Number using Checkboxes)
 baseUri = 'https://bus-reservation.vercel.app/api/v1/'
 
 Builder.load_file("user/user.kv")
@@ -108,7 +109,7 @@ class UserWindow(MDBoxLayout):
             #       'FROM trip ' \
             #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
             #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-            #       'WHERE trip.loc_id=%s AND trip.departure_date=%s'
+                #   'WHERE trip.loc_id=%s AND trip.departure_date=%s AND trip.status=1'
             # values = [loc_id, date, ]
             # self.mycursor.execute(sql, values)
             res = requests.get('%sget-trips-by-loc-and-departure/%s/%s' %(baseUri, loc_id, date)).json()
