@@ -1,13 +1,14 @@
 import requests
 from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.floatlayout import MDFloatLayout
 from kivy.lang.builder import Builder
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from kivymd.uix.label import MDLabel
 from kivymd.uix.pickers import MDDatePicker
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.textfield import MDTextField
-from kivymd.uix.button import MDIconButton
+from kivymd.uix.card import MDCard
+from kivymd.uix.behaviors import RectangularElevationBehavior
 
 baseUri = 'https://bus-reservation.vercel.app/api/v1/'
 
@@ -18,20 +19,60 @@ import mysql.connector
 
 Builder.load_file("admin/admin.kv")
 
+selected_booking_id = 0
+
 class BusStatusField(MDBoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.text = StringProperty()
+
+    def reset(self):
+        self.ids.textfield.text = ""
 
 class BusTypeField(MDBoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.text = StringProperty()
 
+    def reset(self):
+        self.ids.textfield.text = ""
+
 class UserTypeField(MDBoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.text = StringProperty()
+
+class NoData(MDFloatLayout):
+    text = "No Data"
+    icon = "database"
+
+class Transaction(MDCard, RectangularElevationBehavior):
+    booking_id = StringProperty(None)
+    trip_id = StringProperty(None)
+    destination = StringProperty(None)
+    booking_date = StringProperty(None)
+    price = StringProperty(None)
+    bus_name = StringProperty(None)
+    seat = StringProperty(None)
+    paid_status = StringProperty(None)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind(on_release=lambda x: self.get_booking_id())
+
+    def get_booking_id(self):
+        global selected_booking_id
+        selected_booking_id = int(self.booking_id)
+
+class TransactionSummary(MDBoxLayout):
+    username = StringProperty()
+    destination = StringProperty()
+    departure_date = StringProperty()
+    passenger = StringProperty("-")
+    seat_no = StringProperty("-")
+    unit_price = StringProperty()
+    total_payment = StringProperty("0.00")
+    paid_status = StringProperty()
 
 class AdminWindow(MDBoxLayout):
     def __init__(self, **kwargs):
@@ -655,7 +696,6 @@ class AdminWindow(MDBoxLayout):
                     "created_date": str(date),
                     "loc_id": loc_id
                 }
-                print(data, 'bus_data')
                 res = requests.post('%sadd-bus' %(baseUri), json= data).json()
                 if not res['is_success']:
                     raise Exception
@@ -684,7 +724,6 @@ class AdminWindow(MDBoxLayout):
                 )
                 self.dialog.open()
 
-    #FIXME (DONE)
     def update_bus(self, bus_id, price, bus_status):
         status_list = ["Active", "Inactive"]
         id_list = []
@@ -861,19 +900,32 @@ class AdminWindow(MDBoxLayout):
                     "on_release": lambda x=f"{x['loc_name']}": self.set_trip_location(x)
                 }
             )
-        self.menu = MDDropdownMenu(
-            caller=self.ids.add_trip_location_fld,
-            items=items,
-            width_mult=4,
-            ver_growth="down",
-            hor_growth="right",
-        )
+        if self.ids.scrn_mngr.current == "scrn_add_trip":
+            self.menu = MDDropdownMenu(
+                caller=self.ids.add_trip_location_fld,
+                items=items,
+                width_mult=4,
+                ver_growth="down",
+                hor_growth="right",
+            )
+        elif self.ids.scrn_mngr.current == "scrn_add_bus":
+            self.menu = MDDropdownMenu(
+                caller=self.ids.bus_location_fld,
+                items=items,
+                width_mult=4,
+                ver_growth="down",
+                hor_growth="right",
+            )
         self.menu.open()
 
     def set_trip_location(self, location):
-        self.ids.add_trip_location_fld.text = location
-        self.ids.add_trip_location_fld.focus = False
-        self.ids.add_trip_bus_fld.text = ""
+        if self.ids.scrn_mngr.current == "scrn_add_trip":
+            self.ids.add_trip_location_fld.text = location
+            self.ids.add_trip_location_fld.focus = False
+            self.ids.add_trip_bus_fld.text = ""
+        elif self.ids.scrn_mngr.current == "scrn_add_bus":
+            self.ids.bus_location_fld.text = location
+            self.ids.bus_location_fld.focus = False
         self.menu.dismiss()
 
     def open_bus_menu(self):
@@ -886,77 +938,150 @@ class AdminWindow(MDBoxLayout):
         items = list()
         for location in result:
             location_list.append(location['loc_name'])
-        if self.ids.add_trip_location_fld.text == location_list[0]:
-            sql = 'SELECT bus_name FROM bus WHERE id IN (1,2,3)'
-            self.mycursor.execute(sql)
-            result = self.mycursor.fetchall()
-            for x in result:
-                items.append(
-                    {
-                        "text": f"{x[0]}",
-                        "viewclass": "OneLineListItem",
-                        "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
-                    }
-                )
-        elif self.ids.add_trip_location_fld.text == location_list[1]:
-            sql = 'SELECT bus_name FROM bus WHERE id IN (7,8,9)'
-            self.mycursor.execute(sql)
-            result = self.mycursor.fetchall()
-            for x in result:
-                items.append(
-                    {
-                        "text": f"{x[0]}",
-                        "viewclass": "OneLineListItem",
-                        "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
-                    }
-                )
-        elif self.ids.add_trip_location_fld.text == location_list[2]:
-            sql = 'SELECT bus_name FROM bus WHERE id IN (4,5,6)'
-            self.mycursor.execute(sql)
-            result = self.mycursor.fetchall()
-            for x in result:
-                items.append(
-                    {
-                        "text": f"{x[0]}",
-                        "viewclass": "OneLineListItem",
-                        "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
-                    }
-                )
-        elif self.ids.add_trip_location_fld.text == location_list[3]:
-            sql = 'SELECT bus_name FROM bus WHERE id IN (10,11,12)'
-            self.mycursor.execute(sql)
-            result = self.mycursor.fetchall()
-            for x in result:
-                items.append(
-                    {
-                        "text": f"{x[0]}",
-                        "viewclass": "OneLineListItem",
-                        "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
-                    }
-                )
-        else:
-            # sql = 'SELECT bus_name FROM bus WHERE status=1'
-            # self.mycursor.execute(sql)
-            # result = self.mycursor.fetchall()
-            res = requests.get('%sget-active-buses'%(baseUri)).json()
-            result = res['data']
-            if not result:
-                items.append(
-                    {
-                        "text": f"{x['bus_name']}",
-                        "viewclass": "OneLineListItem",
-                        "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
-                    }
-                )
-            else:
-                for x in result:
+        for location in location_list:
+            if self.ids.add_trip_location_fld.text == location:
+                sql = 'SELECT bus.bus_name FROM bus ' \
+                      'INNER JOIN locations ON bus.loc_id = locations.loc_id ' \
+                      'WHERE locations.loc_name = %s AND bus.status = 1'
+                values = [location, ]
+                self.mycursor.execute(sql, values)
+                result = self.mycursor.fetchall()
+                if not result:
                     items.append(
                         {
-                            "text": f"{x['bus_name']}",
-                            "viewclass": "OneLineListItem",
-                            "on_release": lambda x=f"{x['bus_name']}": self.set_trip_bus(x)
+                            "text": "No Bus Available",
+                            "viewclass": "OneLineListItem"
                         }
                     )
+                else:
+                    for x in result:
+                        items.append(
+                            {
+                                "text": f"{x[0]}",
+                                "viewclass": "OneLineListItem",
+                                "on_release": lambda a=f"{x[0]}": self.set_trip_bus(a)
+                            }
+                        )
+            elif self.ids.add_trip_location_fld.text == "":
+                sql = 'SELECT bus_name FROM bus WHERE status = 1'
+                self.mycursor.execute(sql)
+                result = self.mycursor.fetchall()
+                if not result:
+                    items.append(
+                        {
+                            "text": "No Bus Available",
+                            "viewclass": "OneLineListItem"
+                        }
+                    )
+                else:
+                    for x in result:
+                        items.append(
+                            {
+                                "text": f"{x[0]}",
+                                "viewclass": "OneLineListItem",
+                                "on_release": lambda a=f"{x[0]}": self.set_trip_bus(a)
+                            }
+                        )
+        # if self.ids.add_trip_location_fld.text == location_list[0]:
+        #     sql = 'SELECT bus_name FROM bus WHERE loc_id=1 AND status=1'
+        #     self.mycursor.execute(sql)
+        #     result = self.mycursor.fetchall()
+        #     if not result:
+        #         items.append(
+        #             {
+        #                 "text": "No Bus Available",
+        #                 "viewclass": "OneLineListItem",
+        #             }
+        #         )
+        #     else:
+        #         for x in result:
+        #             items.append(
+        #                 {
+        #                     "text": f"{x[0]}",
+        #                     "viewclass": "OneLineListItem",
+        #                     "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
+        #                 }
+        #             )
+        # elif self.ids.add_trip_location_fld.text == location_list[1]:
+        #     sql = 'SELECT bus_name FROM bus WHERE loc_id=2 AND status=1'
+        #     self.mycursor.execute(sql)
+        #     result = self.mycursor.fetchall()
+        #     if not result:
+        #         items.append(
+        #             {
+        #                 "text": "No Bus Available",
+        #                 "viewclass": "OneLineListItem",
+        #             }
+        #         )
+        #     else:
+        #         for x in result:
+        #             items.append(
+        #                 {
+        #                     "text": f"{x[0]}",
+        #                     "viewclass": "OneLineListItem",
+        #                     "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
+        #                 }
+        #             )
+        # elif self.ids.add_trip_location_fld.text == location_list[2]:
+        #     sql = 'SELECT bus_name FROM bus WHERE loc_id=3 AND status=1'
+        #     self.mycursor.execute(sql)
+        #     result = self.mycursor.fetchall()
+        #     if not result:
+        #         items.append(
+        #             {
+        #                 "text": "No Bus Available",
+        #                 "viewclass": "OneLineListItem",
+        #             }
+        #         )
+        #     else:
+        #         for x in result:
+        #             items.append(
+        #                 {
+        #                     "text": f"{x[0]}",
+        #                     "viewclass": "OneLineListItem",
+        #                     "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
+        #                 }
+        #             )
+        # elif self.ids.add_trip_location_fld.text == location_list[3]:
+        #     sql = 'SELECT bus_name FROM bus WHERE loc_id=4 AND status=1'
+        #     self.mycursor.execute(sql)
+        #     result = self.mycursor.fetchall()
+        #     if not result:
+        #         items.append(
+        #             {
+        #                 "text": "No Bus Available",
+        #                 "viewclass": "OneLineListItem",
+        #             }
+        #         )
+        #     else:
+        #         for x in result:
+        #             items.append(
+        #                 {
+        #                     "text": f"{x[0]}",
+        #                     "viewclass": "OneLineListItem",
+        #                     "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
+        #                 }
+        #             )
+        # else:
+        #     sql = 'SELECT bus_name FROM bus WHERE status=1'
+        #     self.mycursor.execute(sql)
+        #     result = self.mycursor.fetchall()
+        #     if not result:
+        #         items.append(
+        #             {
+        #                 "text": "No Bus Available",
+        #                 "viewclass": "OneLineListItem",
+        #             }
+        #         )
+        #     else:
+        #         for x in result:
+        #             items.append(
+        #                 {
+        #                     "text": f"{x[0]}",
+        #                     "viewclass": "OneLineListItem",
+        #                     "on_release": lambda x=f"{x[0]}": self.set_trip_bus(x)
+        #                 }
+        #             )
         self.menu = MDDropdownMenu(
             caller=self.ids.add_trip_bus_fld,
             items=items,
@@ -1152,7 +1277,7 @@ class AdminWindow(MDBoxLayout):
                 }
             )
         self.menu = MDDropdownMenu(
-            caller=self.ids.add_trip_departure_time_fld,
+            caller=self.ids.update_trip_id_fld,
             items=items,
             width_mult=4,
             ver_growth="down",
@@ -1211,10 +1336,6 @@ class AdminWindow(MDBoxLayout):
             )
 
         self.menu.dismiss()
-
-    #FIXME
-    def update_trip(self):
-        pass
 
     #FIXME (DONE)
     def update_password(self, old_pass, new_pass, confirm_pass):
@@ -1383,13 +1504,17 @@ class AdminWindow(MDBoxLayout):
 
     def save_departure_date(self, instance, value, date_range):
         date = value.strftime("%d-%m-%Y")
-        self.ids.add_trip_departure_date_fld.secondary_text = str(date)
+        if self.ids.scrn_mngr.current == "scrn_add_trip":
+            self.ids.add_trip_departure_date_fld.secondary_text = str(date)
+        elif self.ids.scrn_mngr.current == "scrn_update_trip":
+            self.ids.update_trip_departure_date_fld.secondary_text = str(date)
 
     def close_departure_date_picker(self, instance, value):
         self.departure_date.dismiss(force=True)
 
     def goto_main_screen(self):
         self.show_user_table()
+        self.show_trip_table()
         self.ids.scrn_mngr.transition.direction = "right"
         self.ids.scrn_mngr.current = "main_scrn"
         self.ids.toolbar.right_action_items = []
@@ -1443,12 +1568,16 @@ class AdminWindow(MDBoxLayout):
     def goto_add_trip(self):
         self.ids.add_trip_location_fld.text = ""
         self.ids.add_trip_bus_fld.text = ""
-        self.ids.add_trip_departure_date_fld.secondary_text = ""
+        self.ids.add_trip_departure_date_fld.secondary_text = "Add Departure Date"
         self.ids.add_trip_departure_time_fld.text = ""
         self.ids.scrn_mngr.transition.direction = "left"
         self.ids.scrn_mngr.current = "scrn_add_trip"
 
     def goto_update_trip(self):
+        self.ids.update_trip_detail.clear_widgets()
+        self.ids.update_trip_id_fld.text = ""
+        self.ids.update_trip_departure_date_fld.secondary_text = "Add Departure Date"
+        self.ids.update_trip_departure_time_fld.text = ""
         self.ids.scrn_mngr.transition.direction = "left"
         self.ids.scrn_mngr.current = "scrn_update_trip"
 
@@ -1463,16 +1592,30 @@ class AdminWindow(MDBoxLayout):
         self.show_bus_table()
 
     def goto_add_bus(self):
+        self.ids.bus_name_fld.text = ""
+        self.ids.bus_price_fld.text = ""
+        self.ids.bus_type_fld.reset()
         self.ids.scrn_mngr.transition.direction = "left"
         self.ids.scrn_mngr.current = "scrn_add_bus"
 
     def goto_update_bus(self):
+        self.ids.bus_id_fld.text = ""
+        self.ids.update_price_fld.text = ""
+        self.ids.bus_status_fld.reset()
         self.ids.scrn_mngr.transition.direction = "left"
         self.ids.scrn_mngr.current = "scrn_update_bus"
 
     def goto_transaction(self):
-        self.ids.scrn_mngr.transition.direction = "left"
+        self.show_transaction()
+        if self.ids.scrn_mngr.current == "scrn_transaction_detail":
+            self.ids.scrn_mngr.transition.direction = "right"
+        else:
+            self.ids.scrn_mngr.transition.direction = "left"
         self.ids.scrn_mngr.current = "scrn_transaction"
+
+    def goto_transaction_detail(self):
+        self.ids.scrn_mngr.transition.direction = "left"
+        self.ids.scrn_mngr.current = "scrn_transaction_detail"
 
     def close_dialog(self, *args):
         self.dialog.dismiss(force=True)

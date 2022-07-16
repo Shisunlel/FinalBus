@@ -11,6 +11,110 @@
     halign: "left"
 <CustomButton@MDRaisedButton>
     md_bg_color: 0, 0, 0, 1
+<TransactionSummary>
+    orientation: "horizontal"
+    size_hint: 1, None
+    height: self.minimum_height
+    spacing: 20
+    padding: 20, 20
+    GridLayout:
+        size_hint: .4, None
+        spacing: 20
+        cols: 1
+        MDLabel:
+            text: "Purchased by"
+        MDLabel:
+            text: "Direction"
+        MDLabel:
+            text: "Departure Date"
+        MDLabel:
+            text: "Passenger"
+        MDLabel:
+            text: "Seat No"
+        MDLabel:
+            text: "Unit Price"
+        MDLabel:
+            text: "Total Payment"
+        MDLabel:
+            text: "Status"
+    GridLayout:
+        size_hint: .6, None
+        spacing: 20
+        cols: 1
+        MDLabel:
+            id: username_fld
+            text: root.username
+        MDLabel:
+            id: destination_fld
+            text: root.destination
+        MDLabel:
+            id: departure_date_fld
+            text: root.departure_date
+        MDLabel:
+            id: passenger_fld
+            text: root.passenger
+        MDLabel:
+            id: seat_no_fld
+            text: root.seat_no
+        MDLabel:
+            id: unit_price_fld
+            text: "USD " + root.unit_price
+        MDLabel:
+            id: total_payment_fld
+            text: "USD " + root.total_payment
+        MDLabel:
+            id: paid_status_fld
+            text: root.paid_status
+<NoData>
+    MDIcon:
+        icon: root.icon
+        font_size: "64sp"
+        pos_hint: {'center_x': .5, 'center_y': .55}
+    MDLabel:
+        text: root.text
+        halign: "center"
+        font_style: "H2"
+        pos_hint: {'center_x': .5, 'center_y': .45}
+<Transaction>
+    radius: [6, 6, 6, 6]
+    style: "elevated"
+    elevation: 6
+    padding: 100, 20
+    size_hint_y: None
+    GridLayout:
+        cols: 3
+        spacing: 20
+        MDLabel:
+            text: "Destination"
+        MDLabel:
+            text: "Booking Date"
+        MDLabel:
+            text: "Price"
+        MDLabel:
+            text: root.destination
+        MDLabel:
+            text: root.booking_date
+        MDLabel:
+            text: "USD " + root.price
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "bus"
+            MDLabel:
+                text: root.bus_name
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "car-seat"
+            MDLabel:
+                text: "Seat:" + root.seat
+        MDLabel:
+            bold: True
+            text: root.paid_status
 <BusStatusField>
     orientation: "horizontal"
     spacing: 20
@@ -304,25 +408,47 @@
                                             pos: self.pos
                                             radius: [12, 12, 12 ,12]
                                     GridLayout:
-                                        cols: 5
+                                        cols: 8
                                         size_hint_y: .1
                                         spacing: 10
                                         TableHeader:
                                             text: "ID"
                                         TableHeader:
-                                            text: "Description"
+                                            text: "Bus"
+                                        TableHeader:
+                                            text: "Destination"
                                         TableHeader:
                                             text: "Price"
                                         TableHeader:
                                             text: "Available Seat"
                                         TableHeader:
                                             text: "Departure Date"
+                                        TableHeader:
+                                            text: "Departure Time"
+                                        TableHeader:
+                                            text: "Status"
                                     ScrollView:
                                         GridLayout:
                                             id: trip_table_content
-                                            cols: 5
+                                            cols: 8
                                             size_hint_y: None
                                             spacing: 10
+                                MDBoxLayout:
+                                    orientation: "horizontal"
+                                    spacing: 20
+                                    size_hint_y: None
+                                    height: btn_add_trip.height
+                                    CustomButton:
+                                        id: btn_add_trip
+                                        text: "Add Trip"
+                                        size_hint_x: .5
+                                        on_release:
+                                            root.goto_add_trip()
+                                    CustomButton:
+                                        text: "Update Trip"
+                                        size_hint_x: .5
+                                        on_release:
+                                            root.goto_update_trip()
             Screen:
                 id: scrn_edit_profile
                 name: "scrn_edit_profile"
@@ -618,61 +744,74 @@
                         orientation: "vertical"
                         padding: main_win.size[0]/4, main_win.size[1]/3
                         spacing: 20
-                        MDBoxLayout:
-                            orientation: "horizontal"
-                            spacing: 20
-                            size_hint_y: None
-                            height: add_trip_location_fld.height
-                            CustomTextField:
-                                id: add_trip_location_fld
-                                hint_text: "Choose Location"
-                            MDIconButton:
-                                icon: "arrow-down-drop-circle-outline"
-                                on_release:
-                                    root.open_location_menu()
-                        MDBoxLayout:
-                            orientation: "horizontal"
-                            spacing: 20
-                            size_hint_y: None
-                            height: add_trip_bus_fld.height
-                            CustomTextField:
-                                id: add_trip_bus_fld
-                                hint_text: "Choose Bus"
-                            MDIconButton:
-                                icon: "arrow-down-drop-circle-outline"
-                                on_release:
-                                    root.open_bus_menu()
-                        MDBoxLayout:
-                            orientation: "horizontal"
-                            spacing: 20
-                            size_hint_y: None
-                            height: add_trip_departure_date_fld.height
-                            TwoLineListItem:
-                                id: add_trip_departure_date_fld
-                                text: "Departure Date"
-                                secondary_text: "Add Departure Date"
-                                on_release:
-                                    root.departure_date_picker()
+                        MDCard:
+                            orientation: "vertical"
+                            radius: [12, 12, 12, 12]
+                            padding: 20, 20
                             MDBoxLayout:
                                 orientation: "horizontal"
                                 spacing: 20
                                 size_hint_y: None
-                                height: add_trip_departure_time_fld.height
+                                height: add_trip_location_fld.height
                                 CustomTextField:
-                                    id: add_trip_departure_time_fld
-                                    hint_text: "Choose Departure Time"
+                                    id: add_trip_location_fld
+                                    hint_text: "Choose Location"
                                 MDIconButton:
                                     icon: "arrow-down-drop-circle-outline"
                                     on_release:
-                                        root.open_departure_time_menu()
-                        CustomButton:
-                            text: "Add Trip"
-                            size_hint_x: 1
+                                        root.open_location_menu()
+                            MDBoxLayout:
+                                orientation: "horizontal"
+                                spacing: 20
+                                size_hint_y: None
+                                height: add_trip_bus_fld.height
+                                CustomTextField:
+                                    id: add_trip_bus_fld
+                                    hint_text: "Choose Bus"
+                                MDIconButton:
+                                    icon: "arrow-down-drop-circle-outline"
+                                    on_release:
+                                        root.open_bus_menu()
+                            MDBoxLayout:
+                                orientation: "horizontal"
+                                spacing: 20
+                                size_hint_y: None
+                                height: add_trip_departure_date_fld.height
+                                TwoLineListItem:
+                                    id: add_trip_departure_date_fld
+                                    text: "Departure Date"
+                                    secondary_text: "Add Departure Date"
+                                    on_release:
+                                        root.departure_date_picker()
+                                MDBoxLayout:
+                                    orientation: "horizontal"
+                                    spacing: 20
+                                    size_hint_y: None
+                                    height: add_trip_departure_time_fld.height
+                                    CustomTextField:
+                                        id: add_trip_departure_time_fld
+                                        hint_text: "Choose Departure Time"
+                                    MDIconButton:
+                                        icon: "arrow-down-drop-circle-outline"
+                                        on_release:
+                                            root.open_departure_time_menu()
+                            CustomButton:
+                                text: "Add Trip"
+                                size_hint_x: 1
+                                on_release:
+                                    root.add_trip(add_trip_location_fld.text, add_trip_bus_fld.text,
+                                    add_trip_departure_date_fld.secondary_text, add_trip_departure_time_fld.text)
             Screen:
                 id: scrn_update_trip
                 name: 'scrn_update_trip'
                 MDBoxLayout:
                     orientation: "vertical"
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, .25
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
                     MDTopAppBar:
                         title: "Update Trip"
                         md_bg_color: 0, 0, 0, 1
@@ -680,10 +819,82 @@
                             [ \
                             ['arrow-left-bold', lambda x: root.goto_main_screen()] \
                             ]
-                    MDLabel:
-                        text: "Update Trip"
-                        font_style: "H2"
-                        halign: "center"
+                    MDBoxLayout:
+                        orientation: "vertical"
+                        spacing: 20
+                        padding: main_win.size[0]/5, main_win.size[1]/4
+                        MDCard:
+                            orientation: "vertical"
+                            radius: [12, 12, 12, 12]
+                            padding: 20, 20
+                            spacing: 20
+                            MDBoxLayout:
+                                orientation: "horizontal"
+                                spacing: 20
+                                size_hint_y: None
+                                height: update_trip_id_fld.height
+                                CustomTextField:
+                                    id: update_trip_id_fld
+                                    hint_text: "Trip ID"
+                                MDIconButton:
+                                    icon: "arrow-down-drop-circle-outline"
+                                    on_release:
+                                        root.open_trip_menu()
+                            MDBoxLayout:
+                                orientation: "vertical"
+                                spacing: 10
+                                GridLayout:
+                                    cols: 5
+                                    padding: 20, 0
+                                    MDLabel:
+                                        text: "ID"
+                                    MDLabel:
+                                        text: "Bus"
+                                    MDLabel:
+                                        text: "Destination"
+                                    MDLabel:
+                                        text: "Departure Date"
+                                    MDLabel:
+                                        text: "Departure Time"
+                                GridLayout:
+                                    id: update_trip_detail
+                                    cols: 5
+                                    size_hint_y: None
+                                    padding: 20, 0
+                            MDBoxLayout:
+                                orientation: "horizontal"
+                                spacing: 20
+                                size_hint_y: None
+                                height: update_trip_departure_date_fld.height
+                                TwoLineListItem:
+                                    id: update_trip_departure_date_fld
+                                    text: "Departure Date"
+                                    secondary_text: "Add Departure Date"
+                                    on_release:
+                                        root.departure_date_picker()
+                                MDBoxLayout:
+                                    orientation: "horizontal"
+                                    spacing: 20
+                                    size_hint_y: None
+                                    height: update_trip_departure_time_fld.height
+                                    CustomTextField:
+                                        id: update_trip_departure_time_fld
+                                        hint_text: "Choose Departure Time"
+                                    MDIconButton:
+                                        icon: "arrow-down-drop-circle-outline"
+                                        on_release:
+                                            root.open_departure_time_menu()
+                            CustomButton:
+                                text: "Update Trip"
+                                size_hint_x: 1
+                                on_release:
+                                    root.update_trip(update_trip_id_fld.text,
+                                    update_trip_departure_date_fld.secondary_text, update_trip_departure_time_fld.text)
+                            CustomButton:
+                                text: "End Trip"
+                                size_hint_x: 1
+                                on_release:
+                                    root.end_trip(update_trip_id_fld.text)
             Screen:
                 id: scrn_bus
                 name: 'scrn_bus'
@@ -789,6 +1000,18 @@
                             focus: True
                             on_text: self.error = False
                             on_text_validate: bus_price_fld.focus = True
+                        MDBoxLayout:
+                            orientation: "horizontal"
+                            spacing: 20
+                            size_hint_y: None
+                            height: bus_location_fld.height
+                            CustomTextField:
+                                id: bus_location_fld
+                                hint_text: "Select Destination"
+                            MDIconButton:
+                                icon: "arrow-down-drop-circle-outline"
+                                on_release:
+                                    root.open_location_menu()
                         CustomTextField:
                             id: bus_price_fld
                             input_filter: "float"
@@ -802,7 +1025,7 @@
                             text: "Add New Bus"
                             size_hint_x: 1
                             on_release:
-                                root.add_bus(bus_name_fld.text, bus_price_fld.text, bus_type_fld.text)
+                                root.add_bus(bus_name_fld.text, bus_location_fld.text, bus_price_fld.text, bus_type_fld.text)
             Screen:
                 id: scrn_update_bus
                 name: 'scrn_update_bus'
@@ -853,14 +1076,74 @@
                 name: 'scrn_transaction'
                 MDBoxLayout:
                     orientation: "vertical"
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, .25
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
                     MDTopAppBar:
-                        title: "Update Trip"
+                        title: "Transactions"
                         md_bg_color: 0, 0, 0, 1
                         right_action_items:
                             [ \
                             ['arrow-left-bold', lambda x: root.goto_main_screen()] \
                             ]
-                    MDLabel:
-                        text: "Transaction Screen"
-                        font_style: "H2"
-                        halign: "center"
+                    ScrollView:
+                        MDBoxLayout:
+                            id: transaction
+                            orientation: "vertical"
+                            spacing: 20
+                            padding: main_win.size[0]/8, 50
+                            size_hint_y: None
+                            height: self.minimum_height
+            Screen:
+                id: scrn_transaction_detail
+                name: "scrn_transaction_detail"
+                MDBoxLayout:
+                    orientation: "vertical"
+                    spacing: 20
+                    canvas.before:
+                        Color:
+                            rgba: 0, 0, 0, .25
+                        Rectangle:
+                            size: self.size
+                            pos: self.pos
+                    MDTopAppBar:
+                        title: "Transaction Detail"
+                        md_bg_color: 0, 0, 0, 1
+                        right_action_items:
+                            [ \
+                            ['arrow-left-bold', lambda x: root.goto_transaction()] \
+                            ]
+                    MDBoxLayout:
+                        orientation: "vertical"
+                        spacing: 20
+                        padding: main_win.size[0]/8, 20
+                        MDCard:
+                            radius: [12, 12, 12, 12]
+                            orientation: "vertical"
+                            padding: 50, 20
+                            size_hint_y: None
+                            height: self.minimum_height
+                            GridLayout:
+                                cols: 1
+                                size_hint_y: None
+                                height: self.minimum_height
+                                spacing: 20
+                                MDLabel:
+                                    text: "Ticket Summary"
+                                    bold: True
+                                    font_size: 32
+                                    size_hint_y: None
+                                MDBoxLayout:
+                                    id: transaction_summary
+                                    size_hint_y: None
+                                MDLabel:
+                                    text: ""
+                        CustomButton:
+                            text: "Update Status"
+                            on_release:
+                                root.update_transaction()
+                        MDLabel:
+                            text: ""

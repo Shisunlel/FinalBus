@@ -1,7 +1,73 @@
 #: import toast kivymd.toast
+#: import utils kivy.utils
+<TripSummary>
+    orientation: "horizontal"
+    size_hint: 1, None
+    height: self.minimum_height
+    spacing: 20
+    padding: 20, 20
+    GridLayout:
+        size_hint: .4, None
+        spacing: 20
+        cols: 1
+        MDLabel:
+            text: "Direction"
+        MDLabel:
+            text: "Departure Date"
+        MDLabel:
+            text: "Passenger"
+        MDLabel:
+            text: "Seat No"
+        MDLabel:
+            text: "Unit Price"
+        MDLabel:
+            text: "Total Payment"
+    GridLayout:
+        size_hint: .6, None
+        spacing: 20
+        cols: 1
+        MDLabel:
+            id: destination_fld
+            text: root.destination
+        MDLabel:
+            id: departure_date_fld
+            text: root.departure_date
+        MDLabel:
+            id: passenger_fld
+            text: root.passenger
+        MDLabel:
+            id: seat_no_fld
+            text: root.seat_no
+        MDLabel:
+            id: unit_price_fld
+            text: "USD " + root.unit_price
+        MDLabel:
+            id: total_payment_fld
+            text: "USD " + root.total_payment
 <CustomDrawerItem@MDNavigationDrawerItem>
     text_color: 0, 0, 0, 1
     icon_color: 0, 0, 0, 1
+<NoData>
+    MDIcon:
+        icon: root.icon
+        font_size: "64sp"
+        pos_hint: {'center_x': .5, 'center_y': .55}
+    MDLabel:
+        text: root.text
+        halign: "center"
+        font_style: "H2"
+        pos_hint: {'center_x': .5, 'center_y': .45}
+<Seat>
+    size_hint_y: None
+    height: seat_no.height
+    MDCheckbox:
+        size_hint_x: None
+        on_active:
+            root.add_seat(self, root.text)
+    MDLabel:
+        id: seat_no
+        size_hint_x: None
+        text: root.text
 <OptionCard>
     radius: [12, 12, 12, 12]
     height: dp(120)
@@ -16,6 +82,84 @@
             text: root.text
             font_style: "H5"
             bold: True
+<PurchasedTicket>
+    radius: [6, 6, 6, 6]
+    style: "elevated"
+    elevation: 6
+    padding: 100, 20
+    size_hint_y: None
+    GridLayout:
+        cols: 3
+        spacing: 20
+        MDLabel:
+            text: "Destination"
+        MDLabel:
+            text: "Booking Date"
+        MDLabel:
+            text: "Price"
+        MDLabel:
+            text: root.destination
+        MDLabel:
+            text: root.booking_date
+        MDLabel:
+            text: "USD " + root.price
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "bus"
+            MDLabel:
+                text: root.bus_name
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "car-seat"
+            MDLabel:
+                text: "Seat:" + root.seat
+        MDLabel:
+            bold: True
+            text: root.paid_status
+<BusTicket>
+    radius: [6, 6, 6 ,6]
+    style: "elevated"
+    elevation: 6
+    padding: 100, 20
+    size_hint_y: None
+    GridLayout:
+        id: trip_content
+        cols: 3
+        spacing: 20
+        MDLabel:
+            text: "Departure Date"
+        MDLabel:
+            text: "Departure Time"
+        MDLabel:
+            text: "Price"
+        MDLabel:
+            text: root.departure_date
+        MDLabel:
+            text: root.departure_time
+        MDLabel:
+            text: "USD " + root.price
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "bus"
+            MDLabel:
+                text: root.bus_name
+        MDBoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: self.minimum_height
+            MDIcon:
+                icon: "car-seat"
+            MDLabel:
+                text: root.seat
 <CustomTextField>
     icon_left_color: 0, 0, 0, 1
     icon_left_color_normal: 0, 0, 0, 1
@@ -144,6 +288,8 @@
                                             CustomButton:
                                                 text: "Search"
                                                 size_hint_x: 1
+                                                on_release:
+                                                    root.search_tickets(location_fld.text, departure_fld.secondary_text)
                                         MDLabel:
                                             text: ""
                                 Screen:
@@ -157,6 +303,151 @@
                                             size_hint_y: None
                                             height: self.minimum_height
                                             padding: 50, 10
+                                Screen:
+                                    id: scrn_search_ticket
+                                    name: "scrn_search_ticket"
+                                    MDBoxLayout:
+                                        orientation: "vertical"
+                                        spacing: 20
+                                        padding: 50, 10
+                                        MDLabel:
+                                            id: search_count
+                                            text: "No Result"
+                                            bold: True
+                                            size_hint_y: None
+                                            height: 30
+                                        ScrollView:
+                                            MDBoxLayout:
+                                                id: search_ticket_detail
+                                                orientation: "vertical"
+                                                spacing: 20
+                                                size_hint_y: None
+                                                height: self.minimum_height
+                                                padding: 50, 10
+                                Screen:
+                                    id: "scrn_seat_selection"
+                                    name: "scrn_seat_selection"
+                                    MDBoxLayout:
+                                        orientation: "vertical"
+                                        spacing: 20
+                                        padding: 50, 20
+                                        canvas.before:
+                                            Color:
+                                                rgba: 0, 0, 0, .25
+                                            Rectangle:
+                                                size: self.size
+                                                pos: self.pos
+                                        MDCard:
+                                            orientation: "vertical"
+                                            size_hint: 1, None
+                                            padding: 20, 0
+                                            height: trip_summary_fld.height
+                                            ScrollView:
+                                                GridLayout:
+                                                    id: trip_summary_fld
+                                                    cols: 1
+                                                    size_hint_y: None
+                                                    height: self.minimum_height
+                                        MDCard:
+                                            radius: [12, 12 ,12, 12]
+                                            orientation: "vertical"
+                                            padding: 20, 20
+                                            spacing: 10
+                                            ScrollView:
+                                                GridLayout:
+                                                    id: seat_layout
+                                                    cols: 3
+                                                    size_hint_y: None
+                                                    height: self.minimum_height
+                                                    spacing: 10
+                                        CustomButton:
+                                            text: "Continue"
+                                            size_hint_x: 1
+                                            on_release:
+                                                root.booking_payment()
+                                Screen:
+                                    id: scrn_payment
+                                    name: 'scrn_payment'
+                                    MDBoxLayout:
+                                        orientation: "vertical"
+                                        padding: 100, 50
+                                        spacing: 40
+                                        canvas.before:
+                                            Color:
+                                                rgba: 0, 0, 0, .25
+                                            Rectangle:
+                                                size: self.size
+                                                pos: self.pos
+                                        MDCard:
+                                            radius: [12, 12, 12, 12]
+                                            orientation: "vertical"
+                                            size_hint: 1, None
+                                            padding: 20, 0
+                                            height: payment_detail.height
+                                            ScrollView:
+                                                GridLayout:
+                                                    id: payment_detail
+                                                    cols: 1
+                                                    size_hint_y: None
+                                                    height: self.minimum_height
+                                        MDCard:
+                                            radius: [12, 12, 12, 12]
+                                            orientation: "vertical"
+                                            padding: 20, 20
+                                            size_hint_y: None
+                                            height: self.minimum_height
+                                            spacing: 40
+                                            MDBoxLayout:
+                                                orientation: "horizontal"
+                                                spacing: 20
+                                                padding: 100, 0
+                                                size_hint_y: None
+                                                height: offline_payment.height
+                                                canvas.before:
+                                                    Color:
+                                                        rgba: 0, 0, 0, .25
+                                                    RoundedRectangle:
+                                                        size: self.size
+                                                        pos: self.pos
+                                                        radius: [12, 12, 12, 12]
+                                                MDLabel:
+                                                    id: offline_payment
+                                                    text: "Offline Payment"
+                                                    font_style: "H5"
+                                                    bold: True
+                                                MDCheckbox:
+                                                    group: "payment-method"
+                                                    on_active:
+                                                        root.set_payment_method(self, offline_payment.text)
+                                            MDBoxLayout:
+                                                orientation: "horizontal"
+                                                spacing: 20
+                                                padding: 100, 0
+                                                size_hint_y: None
+                                                height: online_payment.height
+                                                canvas.before:
+                                                    Color:
+                                                        rgba: 0, 0, 0, .25
+                                                    RoundedRectangle:
+                                                        size: self.size
+                                                        pos: self.pos
+                                                        radius: [12, 12, 12, 12]
+                                                MDLabel:
+                                                    id: online_payment
+                                                    text: "Online Payment"
+                                                    font_style: "H5"
+                                                    bold: True
+                                                MDCheckbox:
+                                                    group: "payment-method"
+                                                    on_active:
+                                                        root.set_payment_method(self, online_payment.text)
+                                        CustomButton:
+                                            text: "Check-Out"
+                                            size_hint_x: 1
+                                            on_release:
+                                                root.check_out()
+                                        MDLabel:
+                                            text: ""
                         MDBottomNavigationItem:
                             id: ticket
                             name: "ticket"
@@ -164,18 +455,64 @@
                             icon: "ticket-confirmation"
                             on_tab_release:
                                 toolbar.title = "Tickets"
-                            MDBoxLayout:
-                                orientation: "vertical"
-                                canvas.before:
-                                    Color:
-                                        rgba: 0, 0, 0, .25
-                                    Rectangle:
-                                        size: self.size
-                                        pos: self.pos
-                                MDLabel:
-                                    text: "Ticket"
-                                    halign: "center"
-                                    font_style: "H2"
+                                root.ticket_home()
+                            ScreenManager:
+                                id: scrn_ticket_mngr
+                                Screen:
+                                    id: scrn_ticket
+                                    name: "scrn_ticket"
+                                    MDBoxLayout:
+                                        orientation: "vertical"
+                                        padding: main_win.size[0]/8, 20
+                                        canvas.before:
+                                            Color:
+                                                rgba: 0, 0, 0, .25
+                                            Rectangle:
+                                                size: self.size
+                                                pos: self.pos
+                                        ScrollView:
+                                            MDBoxLayout:
+                                                id: purchased_ticket
+                                                orientation: "vertical"
+                                                spacing: 20
+                                                size_hint_y: None
+                                                height: self.minimum_height
+                                Screen:
+                                    id: scrn_ticket_detail
+                                    name: "scrn_ticket_detail"
+                                    MDBoxLayout:
+                                        orientation: "vertical"
+                                        spacing: 20
+                                        padding: main_win.size[0]/8, 20
+                                        canvas.before:
+                                            Color:
+                                                rgba: 0, 0, 0, .25
+                                            Rectangle:
+                                                size: self.size
+                                                pos: self.pos
+                                        MDCard:
+                                            radius: [12, 12, 12, 12]
+                                            orientation: "vertical"
+                                            padding: 50, 10
+                                            spacing: 20
+                                            size_hint_y: None
+                                            height: self.minimum_height
+                                            GridLayout:
+                                                cols: 1
+                                                size_hint_y: None
+                                                height: self.minimum_height
+                                                spacing: 20
+                                                MDLabel:
+                                                    text: "Ticket Summary"
+                                                    halign: "center"
+                                                    bold: True
+                                                    font_size: 32
+                                                    size_hint_y: None
+                                                MDBoxLayout:
+                                                    id: purchased_summary
+                                                    size_hint_y: None
+                                        MDLabel:
+                                            text: ""
             MDScreen:
                 id: scrn_setting
                 name: "scrn_setting"
