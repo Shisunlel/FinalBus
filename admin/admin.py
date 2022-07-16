@@ -47,14 +47,14 @@ class NoData(MDFloatLayout):
     icon = "database"
 
 class Transaction(MDCard, RectangularElevationBehavior):
-    booking_id = StringProperty(None)
-    trip_id = StringProperty(None)
-    destination = StringProperty(None)
-    booking_date = StringProperty(None)
-    price = StringProperty(None)
-    bus_name = StringProperty(None)
-    seat = StringProperty(None)
-    paid_status = StringProperty(None)
+    booking_id = StringProperty()
+    trip_id = StringProperty()
+    destination = StringProperty()
+    booking_date = StringProperty()
+    price = StringProperty()
+    bus_name = StringProperty()
+    seat = StringProperty()
+    paid_status = StringProperty()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -264,6 +264,102 @@ class AdminWindow(MDBoxLayout):
                     )
         else:
             pass
+
+    def search_transaction(self, user_id="", search=False):
+        sql = 'SELECT DISTINCT user_id FROM booking'
+        self.mycursor.execute(sql)
+        result = self.mycursor.fetchall()
+        uid_list = list()
+        for x in result:
+            uid_list.append(x[0])
+
+        def add_transaction_item(transaction_detail):
+            self.ids.transaction.add_widget(transaction_detail)
+
+        self.ids.transaction.clear_widgets()
+        # for uid in uid_list:
+        if search:
+            if user_id == "":
+                self.show_transaction()
+            elif int(user_id) in uid_list:
+                for uid in uid_list:
+                    if int(user_id) == uid:
+                        self.ids.transaction.clear_widgets()
+                        # Get booking_id FROM booking
+                        booking = list()
+                        sql = 'SELECT id FROM booking ' \
+                              'WHERE user_id = %s ' \
+                              'ORDER BY booking_date DESC'
+                        values = [uid, ]
+                        self.mycursor.execute(sql, values)
+                        result = self.mycursor.fetchall()
+                        for x in result:
+                            booking.append(x[0])
+
+                        # Get booking_date and price FROM booking
+                        for booking_id in booking:
+                            sql = 'SELECT booking_date, payment, status FROM booking ' \
+                                  'WHERE id = %s'
+                            values = [booking_id, ]
+                            self.mycursor.execute(sql, values)
+                            result = self.mycursor.fetchone()
+                            booking_date = result[0]
+                            price = result[1]
+                            paid_status = "Paid" if result[2] == 1 else "Not Paid"
+
+                        # Get seat_name FROM booking
+                            seat = list()
+                            sql = 'SELECT seat_name FROM bus_seat ' \
+                                  'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
+                            values = [booking_id, ]
+                            self.mycursor.execute(sql, values)
+                            result = self.mycursor.fetchall()
+                            for x in result:
+                                seat.append(x[0])
+
+                        # Get trip_id
+                            sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
+                                  'WHERE booking_id = %s'
+                            values = [booking_id, ]
+                            self.mycursor.execute(sql, values)
+                            result = self.mycursor.fetchone()
+                            trip_id = result[0]
+
+                        # Get destination and bus_name
+                            sql = 'SELECT locations.loc_name, bus.bus_name ' \
+                                  'FROM trip ' \
+                                  'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+                                  'INNER JOIN bus ON trip.bus_id = bus.id ' \
+                                  'WHERE trip.id = %s'
+                            values = [trip_id, ]
+                            self.mycursor.execute(sql, values)
+                            result = self.mycursor.fetchone()
+                            destination = result[0]
+                            bus_name = result[1]
+
+                            tran = Transaction(
+                                booking_id=str(booking_id),
+                                trip_id=str(trip_id),
+                                destination=destination,
+                                booking_date=str(booking_date),
+                                price=str(price),
+                                bus_name=bus_name,
+                                seat=",".join(seat),
+                                paid_status=paid_status,
+                                on_release=lambda a=Transaction: self.show_transaction_detail(a)
+                            )
+                            add_transaction_item(tran)
+            else:
+                self.ids.transaction.clear_widgets()
+                self.ids.transaction.add_widget(
+                    MDLabel(
+                        text="Not Found",
+                        halign="center",
+                        font_style="H2",
+                        bold=True
+                    )
+                )
+
 
     def show_transaction(self):
         self.ids.transaction.clear_widgets()

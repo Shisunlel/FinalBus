@@ -297,7 +297,7 @@ class UserWindow(MDBoxLayout):
                       'WHERE id = %s'
                 values = [trip_id, ]
                 self.mycursor.execute(sql, values)
-                self.mycursor.commit()
+                self.mydb.commit()
 
             # Online Payment Method or Offline Payment Method
             if payment_method == "Online Payment":

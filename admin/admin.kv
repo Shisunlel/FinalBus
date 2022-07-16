@@ -748,6 +748,8 @@
                             orientation: "vertical"
                             radius: [12, 12, 12, 12]
                             padding: 20, 20
+                            size_hint: 1, None
+                            height: self.minimum_height
                             MDBoxLayout:
                                 orientation: "horizontal"
                                 spacing: 20
@@ -1089,6 +1091,18 @@
                             [ \
                             ['arrow-left-bold', lambda x: root.goto_main_screen()] \
                             ]
+                    MDBoxLayout:
+                        orientation: "vertical"
+                        padding: main_win.size[0]/8, 10
+                        size_hint_y: None
+                        height: self.minimum_height
+                        CustomTextField:
+                            id: search_transaction_fld
+                            mode: "rectangle"
+                            hint_text: "User ID"
+                            input_filter: "int"
+                            on_text:
+                                root.search_transaction(self.text, True)
                     ScrollView:
                         MDBoxLayout:
                             id: transaction
