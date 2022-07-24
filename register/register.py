@@ -6,7 +6,8 @@ from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
 from datetime import datetime
 
-baseUri = 'https://bus-reservation.vercel.app/api/v1/'
+useRealApi = False
+baseUri = 'https://bus-reservation.vercel.app/api/v1/' if useRealApi else 'http://127.0.0.1:8000/api/v1/'
 
 import mysql.connector
 

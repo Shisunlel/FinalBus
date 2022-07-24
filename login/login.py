@@ -6,7 +6,8 @@ from kivy.uix.screenmanager import ScreenManager
 # import mysql.connector
 import requests
 
-baseUri = 'https://bus-reservation.vercel.app/api/v1/'
+useRealApi = False
+baseUri = 'https://bus-reservation.vercel.app/api/v1/' if useRealApi else 'http://127.0.0.1:8000/api/v1/'
 
 Builder.load_file("login/login.kv")
 

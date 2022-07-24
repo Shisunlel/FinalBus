@@ -10,7 +10,8 @@ from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.card import MDCard
 from kivymd.uix.behaviors import RectangularElevationBehavior
 
-baseUri = 'https://bus-reservation.vercel.app/api/v1/'
+useRealApi = False
+baseUri = 'https://bus-reservation.vercel.app/api/v1/' if useRealApi else 'http://127.0.0.1:8000/api/v1/'
 
 from kivy.properties import StringProperty
 
@@ -266,12 +267,13 @@ class AdminWindow(MDBoxLayout):
             pass
 
     def search_transaction(self, user_id="", search=False):
-        sql = 'SELECT DISTINCT user_id FROM booking'
-        self.mycursor.execute(sql)
-        result = self.mycursor.fetchall()
+        # sql = 'SELECT DISTINCT user_id FROM booking'
+        # self.mycursor.execute(sql)
+        # result = self.mycursor.fetchall()
+        res = requests.get('%sget-users-from-booking' %(baseUri)).json()
         uid_list = list()
-        for x in result:
-            uid_list.append(x[0])
+        for x in res['data']:
+            uid_list.append(x['user_id'])
 
         def add_transaction_item(transaction_detail):
             self.ids.transaction.add_widget(transaction_detail)
@@ -286,59 +288,65 @@ class AdminWindow(MDBoxLayout):
                     if int(user_id) == uid:
                         self.ids.transaction.clear_widgets()
                         # Get booking_id FROM booking
-                        booking = list()
-                        sql = 'SELECT id FROM booking ' \
-                              'WHERE user_id = %s ' \
-                              'ORDER BY booking_date DESC'
-                        values = [uid, ]
-                        self.mycursor.execute(sql, values)
-                        result = self.mycursor.fetchall()
-                        for x in result:
-                            booking.append(x[0])
+                        bookings = list()
+                        # sql = 'SELECT id FROM booking ' \
+                        #       'WHERE user_id = %s ' \
+                        #       'ORDER BY booking_date DESC'
+                        # values = [uid, ]
+                        # self.mycursor.execute(sql, values)
+                        # result = self.mycursor.fetchall()
+                        res = requests.get('%sget-user-booking/%s' %(baseUri, uid)).json()
+                        for x in res['data']:
+                            bookings.append(x['id'])
 
                         # Get booking_date and price FROM booking
-                        for booking_id in booking:
-                            sql = 'SELECT booking_date, payment, status FROM booking ' \
-                                  'WHERE id = %s'
-                            values = [booking_id, ]
-                            self.mycursor.execute(sql, values)
-                            result = self.mycursor.fetchone()
-                            booking_date = result[0]
-                            price = result[1]
-                            paid_status = "Paid" if result[2] == 1 else "Not Paid"
+                        for booking in bookings:
+                            # sql = 'SELECT booking_date, payment, status FROM booking ' \
+                            #       'WHERE id = %s'
+                            # values = [booking_id, ]
+                            # self.mycursor.execute(sql, values)
+                            # result = self.mycursor.fetchone()
+                            # result = res['data']
+                            booking_date = booking['booking_date']
+                            price = booking['payment']
+                            paid_status = "Paid" if booking['status'] == 1 else "Not Paid"
 
                         # Get seat_name FROM booking
                             seat = list()
-                            sql = 'SELECT seat_name FROM bus_seat ' \
-                                  'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
-                            values = [booking_id, ]
-                            self.mycursor.execute(sql, values)
-                            result = self.mycursor.fetchall()
-                            for x in result:
-                                seat.append(x[0])
+                            # sql = 'SELECT seat_name FROM bus_seat ' \
+                            #       'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
+                            # values = [booking, ]
+                            # self.mycursor.execute(sql, values)
+                            # result = self.mycursor.fetchall()
+                            res = requests.get('%sget-bus-seat-from-booking/%s' %(baseUri, booking['id'])).json()
+                            for x in res['data']:
+                                seat.append(x['seat_name'])
 
                         # Get trip_id
-                            sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
-                                  'WHERE booking_id = %s'
-                            values = [booking_id, ]
-                            self.mycursor.execute(sql, values)
-                            result = self.mycursor.fetchone()
-                            trip_id = result[0]
+                            # sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
+                            #       'WHERE booking_id = %s'
+                            # values = [booking_id, ]
+                            # self.mycursor.execute(sql, values)
+                            # result = self.mycursor.fetchone()
+                            res = requests.get('%sget-trip-id-from-booking/%s' %(baseUri, booking['id'])).json()
+                            trip_id = res['data']['trip_id']
 
                         # Get destination and bus_name
-                            sql = 'SELECT locations.loc_name, bus.bus_name ' \
-                                  'FROM trip ' \
-                                  'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-                                  'INNER JOIN bus ON trip.bus_id = bus.id ' \
-                                  'WHERE trip.id = %s'
-                            values = [trip_id, ]
-                            self.mycursor.execute(sql, values)
-                            result = self.mycursor.fetchone()
-                            destination = result[0]
-                            bus_name = result[1]
+                            # sql = 'SELECT locations.loc_name, bus.bus_name ' \
+                            #       'FROM trip ' \
+                            #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
+                            #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
+                            #       'WHERE trip.id = %s'
+                            # values = [trip_id, ]
+                            # self.mycursor.execute(sql, values)
+                            # result = self.mycursor.fetchone()
+                            res = requests.get('%sget-trip-by-id/%s' %(baseUri, trip_id)).json()
+                            result = res['data']
+                            destination = result['loc_name']
+                            bus_name = result['bus_name']
 
                             tran = Transaction(
-                                booking_id=str(booking_id),
+                                booking_id=str(booking['id']),
                                 trip_id=str(trip_id),
                                 destination=destination,
                                 booking_date=str(booking_date),
@@ -461,10 +469,10 @@ class AdminWindow(MDBoxLayout):
         # self.mycursor.execute(sql, values)
         # result = self.mycursor.fetchall()
         res = requests.get('%sget-trip-by-id/%s' %(baseUri, booking.trip_id)).json()
-        for x in res['data']:
-            transaction_detail.destination = x['loc_name']
-            transaction_detail.departure_date = f"{x['departure_date']} {x['departure_time']}"
-            transaction_detail.unit_price = f"{x['price']}"
+        x = res['data']
+        transaction_detail.destination = x['loc_name']
+        transaction_detail.departure_date = f"{x['departure_date']} {x['departure_time']}"
+        transaction_detail.unit_price = f"{x['price']}"
 
         transaction_detail.seat_no = booking.seat
         transaction_detail.total_payment = booking.price
@@ -1036,12 +1044,13 @@ class AdminWindow(MDBoxLayout):
             location_list.append(location['loc_name'])
         for location in location_list:
             if self.ids.add_trip_location_fld.text == location:
-                sql = 'SELECT bus.bus_name FROM bus ' \
-                      'INNER JOIN locations ON bus.loc_id = locations.loc_id ' \
-                      'WHERE locations.loc_name = %s AND bus.status = 1'
-                values = [location, ]
-                self.mycursor.execute(sql, values)
-                result = self.mycursor.fetchall()
+                # sql = 'SELECT bus.bus_name FROM bus ' \
+                #       'INNER JOIN locations ON bus.loc_id = locations.loc_id ' \
+                #       'WHERE locations.loc_name = %s AND bus.status = 1'
+                # values = [location, ]
+                # self.mycursor.execute(sql, values)
+                # result = self.mycursor.fetchall()
+                result = requests.get('%sget-bus-location/%s' %(baseUri, location)).json()
                 if not result:
                     items.append(
                         {
@@ -1050,18 +1059,20 @@ class AdminWindow(MDBoxLayout):
                         }
                     )
                 else:
-                    for x in result:
+                    for x in result['data']:
                         items.append(
                             {
-                                "text": f"{x[0]}",
+                                "text": f"{x['bus_name']}",
                                 "viewclass": "OneLineListItem",
-                                "on_release": lambda a=f"{x[0]}": self.set_trip_bus(a)
+                                "on_release": lambda a=f"{x['bus_name']}": self.set_trip_bus(a)
                             }
                         )
             elif self.ids.add_trip_location_fld.text == "":
-                sql = 'SELECT bus_name FROM bus WHERE status = 1'
-                self.mycursor.execute(sql)
-                result = self.mycursor.fetchall()
+                # sql = 'SELECT bus_name FROM bus WHERE status = 1'
+                # self.mycursor.execute(sql)
+                # result = self.mycursor.fetchall()
+                res = requests.get('%sget-active-trips'%(baseUri)).json()
+                result = res['data']
                 if not result:
                     items.append(
                         {
@@ -1073,7 +1084,7 @@ class AdminWindow(MDBoxLayout):
                     for x in result:
                         items.append(
                             {
-                                "text": f"{x[0]}",
+                                "text": f"{x['bus_name']}",
                                 "viewclass": "OneLineListItem",
                                 "on_release": lambda a=f"{x[0]}": self.set_trip_bus(a)
                             }
