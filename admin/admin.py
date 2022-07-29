@@ -296,64 +296,16 @@ class AdminWindow(MDBoxLayout):
                         # self.mycursor.execute(sql, values)
                         # result = self.mycursor.fetchall()
                         res = requests.get('%sget-user-booking/%s' %(baseUri, uid)).json()
-                        for x in res['data']:
-                            bookings.append(x['id'])
-
-                        # Get booking_date and price FROM booking
-                        for booking in bookings:
-                            # sql = 'SELECT booking_date, payment, status FROM booking ' \
-                            #       'WHERE id = %s'
-                            # values = [booking_id, ]
-                            # self.mycursor.execute(sql, values)
-                            # result = self.mycursor.fetchone()
-                            # result = res['data']
-                            booking_date = booking['booking_date']
-                            price = booking['payment']
-                            paid_status = "Paid" if booking['status'] == 1 else "Not Paid"
-
-                        # Get seat_name FROM booking
-                            seat = list()
-                            # sql = 'SELECT seat_name FROM bus_seat ' \
-                            #       'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
-                            # values = [booking, ]
-                            # self.mycursor.execute(sql, values)
-                            # result = self.mycursor.fetchall()
-                            res = requests.get('%sget-bus-seat-from-booking/%s' %(baseUri, booking['id'])).json()
-                            for x in res['data']:
-                                seat.append(x['seat_name'])
-
-                        # Get trip_id
-                            # sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
-                            #       'WHERE booking_id = %s'
-                            # values = [booking_id, ]
-                            # self.mycursor.execute(sql, values)
-                            # result = self.mycursor.fetchone()
-                            res = requests.get('%sget-trip-id-from-booking/%s' %(baseUri, booking['id'])).json()
-                            trip_id = res['data']['trip_id']
-
-                        # Get destination and bus_name
-                            # sql = 'SELECT locations.loc_name, bus.bus_name ' \
-                            #       'FROM trip ' \
-                            #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-                            #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
-                            #       'WHERE trip.id = %s'
-                            # values = [trip_id, ]
-                            # self.mycursor.execute(sql, values)
-                            # result = self.mycursor.fetchone()
-                            res = requests.get('%sget-trip-by-id/%s' %(baseUri, trip_id)).json()
-                            result = res['data']
-                            destination = result['loc_name']
-                            bus_name = result['bus_name']
-
+                        for data in res['data']:
                             tran = Transaction(
-                                booking_id=str(booking['id']),
-                                trip_id=str(trip_id),
-                                destination=destination,
-                                booking_date=str(booking_date),
-                                price=str(price),
-                                bus_name=bus_name,
-                                seat=",".join(seat),
-                                paid_status=paid_status,
+                                booking_id=data['booking_id'],
+                                trip_id=data['trip_id'],
+                                destination=data['destination'],
+                                booking_date=data['booking_date'],
+                                price=data['price'],
+                                bus_name=data['bus_name'],
+                                seat=data['seat'],
+                                paid_status=data['paid_status'],
                                 on_release=lambda a=Transaction: self.show_transaction_detail(a)
                             )
                             add_transaction_item(tran)
