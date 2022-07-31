@@ -287,14 +287,6 @@ class AdminWindow(MDBoxLayout):
                 for uid in uid_list:
                     if int(user_id) == uid:
                         self.ids.transaction.clear_widgets()
-                        # Get booking_id FROM booking
-                        bookings = list()
-                        # sql = 'SELECT id FROM booking ' \
-                        #       'WHERE user_id = %s ' \
-                        #       'ORDER BY booking_date DESC'
-                        # values = [uid, ]
-                        # self.mycursor.execute(sql, values)
-                        # result = self.mycursor.fetchall()
                         res = requests.get('%sget-user-booking/%s' %(baseUri, uid)).json()
                         for data in res['data']:
                             tran = Transaction(
@@ -323,72 +315,22 @@ class AdminWindow(MDBoxLayout):
 
     def show_transaction(self):
         self.ids.transaction.clear_widgets()
-        booking = list()
-        # sql = 'SELECT id FROM booking'
-        # self.mycursor.execute(sql)
-        # result = self.mycursor.fetchall()
-        res = requests.get('%sget-bookings' %(baseUri)).json()
+        uid = 0
+        res = requests.get('%sget-user-booking/%s' %(baseUri, uid)).json()
         if not res['data']:
             self.ids.transaction.add_widget(NoData())
         else:
-            for x in res['data']:
-                booking.append(x['id'])
-
-            for booking_id in booking:
-                # Get booking_date and price from booking
-                # sql = 'SELECT booking_date, payment, status FROM booking ' \
-                #       'WHERE id = %s'
-                # values = [booking_id, ]
-                # self.mycursor.execute(sql, values)
-                # result = self.mycursor.fetchone()
-                res = requests.get('%sget-booking-by-id/%s' %(baseUri, booking_id)).json()
-                booking_date = res['data']['booking_date']
-                price = res['data']['payment']
-                paid_status = "Paid" if res['data']['status'] == 1 else "Not Paid"
-
-                # Get seat_name from booking
-                seat = list()
-                # sql = 'SELECT seat_name FROM bus_seat ' \
-                #       'WHERE id IN (SELECT seat_id FROM booking_detail WHERE booking_id = %s)'
-                # values = [booking_id, ]
-                # self.mycursor.execute(sql, values)
-                # result = self.mycursor.fetchall()
-                res = requests.get('%sget-bus-seat-from-booking/%s' %(baseUri, booking_id)).json()
-                for x in res['data']:
-                    seat.append(x['seat_name'])
-
-                # Get trip_id
-                # sql = 'SELECT DISTINCT trip_id FROM booking_detail ' \
-                #       'WHERE booking_id = %s'
-                # values = [booking_id, ]
-                # self.mycursor.execute(sql, values)
-                # result = self.mycursor.fetchone()
-                res = requests.get('%sget-trip-id-from-booking/%s' %(baseUri, booking_id)).json()
-                trip_id = res['data']['trip_id']
-
-                # Get destination and bus name
-                # sql = 'SELECT locations.loc_name, bus.bus_name ' \
-                #       'FROM trip ' \
-                #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-                #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
-                #       'WHERE trip.id = %s'
-                # values = [trip_id, ]
-                # self.mycursor.execute(sql, values)
-                # result = self.mycursor.fetchone()
-                res = requests.get('%sget-trip-by-id/%s' %(baseUri, trip_id)).json()
-                destination = res['data']['loc_name']
-                bus_name = res['data']['bus_name']
-
+            for data in res['data']:
                 self.ids.transaction.add_widget(
                     Transaction(
-                        booking_id=str(booking_id),
-                        trip_id=str(trip_id),
-                        destination=destination,
-                        booking_date=str(booking_date),
-                        price=str(price),
-                        bus_name=bus_name,
-                        seat=",".join(seat),
-                        paid_status=paid_status,
+                        booking_id=str(data['booking_id']),
+                        trip_id=str(data['trip_id']),
+                        destination=data['destination'],
+                        booking_date=str(data['booking_date']),
+                        price=str(data['price']),
+                        bus_name=data['bus_name'],
+                        seat=data['seat'],
+                        paid_status=data['paid_status'],
                         on_release=lambda a=Transaction: self.show_transaction_detail(a)
                     )
                 )
@@ -399,40 +341,24 @@ class AdminWindow(MDBoxLayout):
             )
 
     def show_transaction_detail(self, booking):
-        transaction_detail = TransactionSummary()
+        body = {
+            'booking_id': booking.booking_id,
+            "trip_id": booking.trip_id
+        }
 
-        # Get username
-        # sql = 'SELECT users.user_name FROM booking ' \
-        #       'INNER JOIN users ON booking.user_id = users.user_id ' \
-        #       'WHERE booking.id = %s'
-        # values = [booking.booking_id, ]
-        # self.mycursor.execute(sql, values)
-        # result = self.mycursor.fetchone()
-        res = requests.get('%sget-user-from-booking/%s' %(baseUri, booking.booking_id)).json()
-        username = res['data']['user_name']
-        transaction_detail.username = username
-
-        # sql = 'SELECT locations.loc_name, trip.departure_date, trip.departure_time, bus.price ' \
-        #       'FROM trip ' \
-        #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-        #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
-        #       'WHERE trip.id = %s'
-        # values = [booking.trip_id, ]
-        # self.mycursor.execute(sql, values)
-        # result = self.mycursor.fetchall()
-        res = requests.get('%sget-trip-by-id/%s' %(baseUri, booking.trip_id)).json()
-        x = res['data']
-        transaction_detail.destination = x['loc_name']
-        transaction_detail.departure_date = f"{x['departure_date']} {x['departure_time']}"
-        transaction_detail.unit_price = f"{x['price']}"
-
-        transaction_detail.seat_no = booking.seat
-        transaction_detail.total_payment = booking.price
-        transaction_detail.passenger = str(len(booking.seat.split(",")))
-        transaction_detail.paid_status = booking.paid_status
+        res = requests.post('%sshow-transaction-detail' %(baseUri), data=body).json()
 
         self.ids.transaction_summary.clear_widgets()
-        self.ids.transaction_summary.add_widget(transaction_detail)
+        self.ids.transaction_summary.add_widget(TransactionSummary(
+            username=res['data']['username'],
+            destination=res['data']['destination'],
+            departure_date=res['data']['departure_date'],
+            unit_price=res['data']['unit_price'],
+            seat_no=booking.seat,
+            total_payment=booking.price,
+            passenger=str(len(booking.seat.split(","))),
+            paid_status=booking.paid_status
+        ))
 
         self.goto_transaction_detail()
 

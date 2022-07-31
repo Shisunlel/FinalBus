@@ -118,9 +118,6 @@ class UserWindow(MDBoxLayout):
         self.get_locations()
 
     def get_locations(self):
-        # sql = 'SELECT loc_name FROM locations'
-        # self.mycursor.execute(sql)
-        # result = self.mycursor.fetchall()
         res = requests.get('%sget-locations'%(baseUri)).json()
         result = res['data']
         for x in result:
@@ -457,17 +454,8 @@ class UserWindow(MDBoxLayout):
 
     def set_trip_summary(self, trip_id):
         self.trip_summary = TripSummary()
-        # sql = 'SELECT locations.loc_name, trip.departure_date, trip.departure_time, bus.price ' \
-        #       'FROM trip ' \
-        #       'INNER JOIN locations ON trip.loc_id = locations.loc_id ' \
-        #       'INNER JOIN bus ON trip.bus_id = bus.id ' \
-        #       'WHERE trip.id=%s'
-        # values = [trip_id, ]
-        # self.mycursor.execute(sql, values)
-        # result = self.mycursor.fetchall()
         res = requests.get('%sget-trip-by-id/%s' %(baseUri, trip_id)).json()
         result = res['data']
-        # for x in result:
         self.trip_summary.destination = result['loc_name']
         self.trip_summary.departure_date = f"{result['departure_date']} {result['departure_time']}"
         self.trip_summary.unit_price = f"{result['price']}"
@@ -489,12 +477,6 @@ class UserWindow(MDBoxLayout):
 
     def set_seat_layout(self, trip_id):
         self.ids.seat_layout.clear_widgets()
-        # sql = 'SELECT seat_name, status ' \
-        #       'FROM bus_seat ' \
-        #       'WHERE bus_id IN (SELECT bus_id FROM trip WHERE id=%s)'
-        # values = [trip_id, ]
-        # self.mycursor.execute(sql, values)
-        # result = self.mycursor.fetchall()
         res = requests.get('%sget-bus-seat-from-trip/%s' %(baseUri, trip_id)).json()
         result = res['data']
         for seat in result:
